@@ -89,6 +89,7 @@ Flags:
       --map-string string             Rebuild a partition map provided as a string literal
       --metrics-age int               Kafka metrics age tolerance (in minutes) (when using storage placement) (default 60)
       --min-rack-ids int              Minimum number of required of unique rack IDs per replica set (0 requires that all are unique)
+      --rack-map                      Override brokers rack with provided map as a string literal
       --optimize string               Optimization priority for the storage placement strategy: [distribution, storage] (default "distribution")
       --optimize-leadership           Rebalance all broker leader/follower ratios
       --out-file string               If defined, write a combined map of all topics to a file

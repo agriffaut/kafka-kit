@@ -3,6 +3,8 @@ package commands
 import (
 	"fmt"
 	"os"
+	"strings"
+	"strconv"
 
 	"github.com/DataDog/kafka-kit/v3/kafkazk"
 
@@ -35,6 +37,7 @@ func init() {
 	rebuildCmd.Flags().Bool("sub-affinity", false, "Replacement broker substitution affinity")
 	rebuildCmd.Flags().String("placement", "count", "Partition placement strategy: [count, storage]")
 	rebuildCmd.Flags().Int("min-rack-ids", 0, "Minimum number of required of unique rack IDs per replica set (0 requires that all are unique)")
+	rebuildCmd.Flags().String("rack-map", "", "Override brokers rack with provided map as a string literal")
 	rebuildCmd.Flags().String("optimize", "distribution", "Optimization priority for the storage placement strategy: [distribution, storage]")
 	rebuildCmd.Flags().Float64("partition-size-factor", 1.0, "Factor by which to multiply partition sizes when using storage placement")
 	rebuildCmd.Flags().String("brokers", "", "Broker list to scope all partition placements to ('-1' for all currently mapped brokers, '-2' for all brokers in cluster)")
@@ -113,6 +116,16 @@ func rebuild(cmd *cobra.Command, _ []string) {
 	var brokerMeta kafkazk.BrokerMetaMap
 	if m, _ := cmd.Flags().GetBool("use-meta"); m {
 		brokerMeta = getBrokerMeta(cmd, zk, withMetrics)
+
+		// force broker rack
+		if mr := cmd.Flag("rack-map").Value.String(); mr != "" {
+			rackMap := parseRackMap(mr)
+			for broker, rack := range rackMap {
+				if meta, found := brokerMeta[broker]; found {
+					meta.Rack = rack
+				}
+			}
+		}
 	}
 
 	// Fetch partition metadata.
@@ -201,4 +214,16 @@ func rebuild(cmd *cobra.Command, _ []string) {
 	}
 
 	writeMaps(cmd, partitionMapOut, phasedMap)
+}
+
+// 1:abc,2:cde...
+func parseRackMap(mr string) map[int]string {
+	result := map[int]string{}
+	for _, elem := range strings.Split(mr, ",") {
+		split := strings.Split(elem, ":")
+		if broker, err := strconv.Atoi(split[0]); err == nil && len(split) == 2 {
+			result[broker] = split[1]
+		}
+	}
+	return result
 }
